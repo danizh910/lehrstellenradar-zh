@@ -1,0 +1,17 @@
+name: Stündlicher Lehrstellencheck
+
+on:
+  schedule:
+    - cron: '0 6-17 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scraper triggern
+        run: |
+          curl -f -X GET \
+            "${{ secrets.APP_URL }}/api/cron/scrape" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 60

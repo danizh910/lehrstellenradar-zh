@@ -5,18 +5,31 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "cheerio": "^1.2.0",
+    "drizzle-orm": "^0.45.2",
     "next": "16.2.6",
+    "node-telegram-bot-api": "^0.67.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "resend": "^6.12.3",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/node-telegram-bot-api": "^0.64.14",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
+    "drizzle-kit": "^0.31.10",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

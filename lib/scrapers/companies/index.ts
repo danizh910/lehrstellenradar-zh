@@ -7,8 +7,6 @@ import { scrapeZurichInsurance } from './zurichinsurance'
 import { scrapeHelvetia } from './helvetia'
 import { scrapeSix } from './six'
 import { scrapeMobiliar } from './mobiliar'
-import { sleep } from '@/lib/utils'
-
 const COMPANY_SCRAPERS: Array<{ name: string; fn: () => Promise<RawJob[]> }> = [
   { name: 'ubs', fn: scrapeUbs },
   { name: 'zkb', fn: scrapeZkb },
@@ -21,22 +19,27 @@ const COMPANY_SCRAPERS: Array<{ name: string; fn: () => Promise<RawJob[]> }> = [
 ]
 
 export async function scrapeAllCompanies(): Promise<{ jobs: RawJob[]; results: ScraperResult[] }> {
+  const settled = await Promise.allSettled(
+    COMPANY_SCRAPERS.map(async ({ name, fn }) => {
+      const start = Date.now()
+      const errors: string[] = []
+      let scraped: RawJob[] = []
+      try {
+        scraped = await fn()
+      } catch (err) {
+        errors.push(String(err))
+      }
+      return { source: name, scraped, result: { source: name, jobsFound: scraped.length, jobsSaved: 0, errors, durationMs: Date.now() - start } }
+    })
+  )
+
   const allJobs: RawJob[] = []
   const results: ScraperResult[] = []
-
-  for (const { name, fn } of COMPANY_SCRAPERS) {
-    const start = Date.now()
-    const errors: string[] = []
-    let jobs: RawJob[] = []
-    try {
-      jobs = await fn()
-      allJobs.push(...jobs)
-    } catch (err) {
-      errors.push(String(err))
+  for (const r of settled) {
+    if (r.status === 'fulfilled') {
+      allJobs.push(...r.value.scraped)
+      results.push(r.value.result)
     }
-    results.push({ source: name, jobsFound: jobs.length, jobsSaved: 0, errors, durationMs: Date.now() - start })
-    await sleep(2000)
   }
-
   return { jobs: allJobs, results }
 }

@@ -128,7 +128,7 @@ export function JobsView() {
 
         {/* Footer */}
         <footer className="text-center text-xs text-gray-400 py-4 border-t border-gray-200">
-          Lehrstellenradar · Zürich-Oerlikon · Daten von yousty.ch, gateway.one, lehrio.ch, baam.ch und direkten Firmenwebseiten
+          Lehrstellenradar · Zürich-Oerlikon · Daten von yousty.ch, gateway.one, lehrio.ch, baam.ch, lehrstart.ch und direkten Firmenwebseiten
         </footer>
       </main>
     </div>

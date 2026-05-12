@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { runAllScrapers } from '@/lib/scrapers'
 import { db } from '@/lib/db'
 import { scrapeRuns } from '@/lib/db/schema'
-import { desc, gte } from 'drizzle-orm'
+import { desc } from 'drizzle-orm'
 
-export const maxDuration = 300
+export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   // Rate limit: max 1 manual run per 10 minutes
@@ -15,18 +15,49 @@ export async function POST(req: NextRequest) {
     .orderBy(desc(scrapeRuns.startedAt))
     .limit(1)
 
-  if (recent[0] && recent[0].startedAt && recent[0].startedAt > tenMinutesAgo) {
-    const waitMs = tenMinutesAgo.getTime() - recent[0].startedAt.getTime() + 10 * 60 * 1000
-    return NextResponse.json(
-      { error: 'Rate limited', retryAfterMs: waitMs },
-      { status: 429 }
+  if (recent[0]?.startedAt && recent[0].startedAt > tenMinutesAgo) {
+    const waitMs = recent[0].startedAt.getTime() + 10 * 60 * 1000 - Date.now()
+    return new Response(
+      `data: ${JSON.stringify({ type: 'rate-limited', retryAfterMs: waitMs })}\n\n`,
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache, no-transform',
+          'X-Accel-Buffering': 'no',
+        },
+      }
     )
   }
 
-  try {
-    const { newJobsCount, sources, totalScanned } = await runAllScrapers()
-    return NextResponse.json({ newJobs: newJobsCount, totalScanned, sources })
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
-  }
+  const encoder = new TextEncoder()
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (data: object) => {
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+        } catch {}
+      }
+
+      try {
+        const { newJobsCount, totalScanned, sources } = await runAllScrapers((event) => {
+          send(event)
+        })
+        send({ type: 'result', newJobs: newJobsCount, totalScanned, sources })
+      } catch (err) {
+        send({ type: 'error', message: String(err) })
+      } finally {
+        controller.close()
+      }
+    },
+  })
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'X-Accel-Buffering': 'no',
+    },
+  })
 }

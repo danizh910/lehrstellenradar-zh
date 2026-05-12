@@ -8,47 +8,97 @@ interface LiveSearchProps {
 
 type Status = 'idle' | 'running' | 'done' | 'error' | 'rate-limited'
 
-const SOURCES = [
-  'yousty.ch', 'gateway.one', 'lehrio.ch', 'baam.ch',
-  'UBS', 'ZKB', 'Swisscom', 'Swiss Re', 'Zurich Insurance', 'SIX Group',
-]
+const SOURCE_LABELS: Record<string, string> = {
+  yousty: 'yousty.ch',
+  gateway: 'gateway.one',
+  lehrio: 'lehrio.ch',
+  baam: 'baam.ch',
+  lehrstart: 'lehrstart.ch',
+  firmen: 'Firmenwebseiten',
+}
+
+interface SourceState {
+  name: string
+  label: string
+  status: 'waiting' | 'running' | 'done'
+  count?: number
+}
+
+const ALL_SOURCES = Object.keys(SOURCE_LABELS)
 
 export function LiveSearch({ onNewJobs }: LiveSearchProps) {
   const [status, setStatus] = useState<Status>('idle')
   const [result, setResult] = useState<{ newJobs: number; totalScanned: number } | null>(null)
-  const [currentSource, setCurrentSource] = useState('')
+  const [sources, setSources] = useState<SourceState[]>([])
   const [retryAfterMs, setRetryAfterMs] = useState(0)
 
   async function startSearch() {
     setStatus('running')
     setResult(null)
-
-    // Animate source labels
-    let i = 0
-    const interval = setInterval(() => {
-      setCurrentSource(SOURCES[i % SOURCES.length])
-      i++
-    }, 700)
+    setSources(
+      ALL_SOURCES.map(name => ({ name, label: SOURCE_LABELS[name], status: 'waiting' }))
+    )
 
     try {
       const res = await fetch('/api/search', { method: 'POST' })
-      clearInterval(interval)
-      setCurrentSource('')
+      if (!res.body) throw new Error('No response body')
 
-      if (res.status === 429) {
-        const data = await res.json() as { retryAfterMs: number }
-        setRetryAfterMs(data.retryAfterMs)
-        setStatus('rate-limited')
-        return
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop() ?? ''
+
+        for (const part of parts) {
+          const dataLine = part.split('\n').find(l => l.startsWith('data: '))
+          if (!dataLine) continue
+          try {
+            const event = JSON.parse(dataLine.slice(6)) as {
+              type: string
+              source?: string
+              count?: number
+              newJobs?: number
+              totalScanned?: number
+              retryAfterMs?: number
+            }
+
+            if (event.type === 'rate-limited') {
+              setRetryAfterMs(event.retryAfterMs ?? 0)
+              setStatus('rate-limited')
+              return
+            }
+
+            if (event.type === 'start' && event.source) {
+              setSources(prev => prev.map(s =>
+                s.name === event.source ? { ...s, status: 'running' } : s
+              ))
+            }
+
+            if (event.type === 'done' && event.source) {
+              setSources(prev => prev.map(s =>
+                s.name === event.source ? { ...s, status: 'done', count: event.count ?? 0 } : s
+              ))
+            }
+
+            if (event.type === 'result') {
+              setResult({ newJobs: event.newJobs ?? 0, totalScanned: event.totalScanned ?? 0 })
+              setStatus('done')
+              if ((event.newJobs ?? 0) > 0) onNewJobs()
+            }
+
+            if (event.type === 'error') {
+              setStatus('error')
+            }
+          } catch {}
+        }
       }
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json() as { newJobs: number; totalScanned: number }
-      setResult(data)
-      setStatus('done')
-      if (data.newJobs > 0) onNewJobs()
     } catch {
-      clearInterval(interval)
       setStatus('error')
     }
   }
@@ -66,14 +116,29 @@ export function LiveSearch({ onNewJobs }: LiveSearchProps) {
         </button>
       </div>
 
-      {status === 'running' && (
-        <div className="space-y-2">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-            <div className="h-full w-1/3 animate-[slide_1s_ease-in-out_infinite] rounded-full bg-blue-500" />
-          </div>
-          {currentSource && (
-            <p className="text-sm text-gray-500 animate-pulse">Durchsuche {currentSource}…</p>
-          )}
+      {status === 'running' && sources.length > 0 && (
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          {sources.map(s => (
+            <div
+              key={s.name}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                s.status === 'running'
+                  ? 'bg-blue-100 text-blue-700'
+                  : s.status === 'done'
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'bg-gray-100 text-gray-400'
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${
+                s.status === 'running' ? 'animate-pulse bg-blue-500' :
+                s.status === 'done' ? 'bg-emerald-500' : 'bg-gray-300'
+              }`} />
+              <span className="truncate">{s.label}</span>
+              {s.status === 'done' && s.count !== undefined && (
+                <span className="ml-auto font-semibold">{s.count}</span>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

@@ -27,9 +27,10 @@ export function JobFilters({ filters, total }: JobFiltersProps) {
   }, [router, searchParams])
 
   const berufOptions = [
-    { value: 'alle', label: 'Alle Berufe' },
+    { value: 'edb', label: '⭐ Entw. dig. Business EFZ' },
     { value: 'informatiker', label: 'Informatiker EFZ' },
     { value: 'mediamatiker', label: 'Mediamatiker EFZ' },
+    { value: 'alle', label: 'Alle Berufe' },
   ]
 
   const sortOptions = [

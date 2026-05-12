@@ -31,7 +31,7 @@ export function JobsView() {
   const [loading, setLoading] = useState(true)
 
   const filters: Filters = {
-    beruf: searchParams.get('beruf') || 'alle',
+    beruf: searchParams.get('beruf') || 'edb',
     firma: searchParams.get('firma') || '',
     maxKm: parseInt(searchParams.get('maxKm') || '10'),
     nurNeu: searchParams.get('nurNeu') === 'true',

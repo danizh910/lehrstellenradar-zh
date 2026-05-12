@@ -8,6 +8,7 @@ const BASE = 'https://www.lehrio.ch'
 const UA = 'Mozilla/5.0 (compatible; LehrstellenradarBot/1.0)'
 
 const URLS = [
+  `${BASE}/lehrstellen?beruf=entwickler-digitales-business&kanton=ZH`,
   `${BASE}/lehrstellen?beruf=informatiker&kanton=ZH`,
   `${BASE}/lehrstellen?beruf=mediamatiker&kanton=ZH`,
 ]

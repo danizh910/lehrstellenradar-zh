@@ -8,6 +8,7 @@ const BASE = 'https://junior.gateway.one'
 const UA = 'Mozilla/5.0 (compatible; LehrstellenradarBot/1.0)'
 
 const PATHS = [
+  '/de/lehrstellen?beruf=entwickler-digitales-business&kanton=ZH',
   '/de/lehrstellen?beruf=informatiker&kanton=ZH',
   '/de/lehrstellen?beruf=mediamatiker&kanton=ZH',
 ]

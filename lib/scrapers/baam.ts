@@ -8,6 +8,7 @@ const BASE = 'https://www.baam.ch'
 const UA = 'Mozilla/5.0 (compatible; LehrstellenradarBot/1.0)'
 
 const URLS = [
+  `${BASE}/lehrstellen?job=entwickler-digitales-business&region=zuerich`,
   `${BASE}/lehrstellen?job=informatiker&region=zuerich`,
   `${BASE}/lehrstellen?job=mediamatiker&region=zuerich`,
 ]

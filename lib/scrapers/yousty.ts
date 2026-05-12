@@ -8,6 +8,7 @@ const BASE = 'https://www.yousty.ch'
 const UA = 'Mozilla/5.0 (compatible; LehrstellenradarBot/1.0)'
 
 const URLS = [
+  `${BASE}/de-CH/lehrstellen?q=entwickler+digitales+business&canton=ZH`,
   `${BASE}/de-CH/lehrstellen?q=informatiker&canton=ZH`,
   `${BASE}/de-CH/lehrstellen?q=mediamatiker&canton=ZH`,
 ]

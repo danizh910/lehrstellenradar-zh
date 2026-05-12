@@ -14,9 +14,13 @@ export async function GET(req: NextRequest) {
 
     const conditions = [eq(jobs.isActive, true)]
 
-    if (beruf === 'informatiker') {
+    if (beruf === 'edb') {
       conditions.push(
-        sql`lower(${jobs.title}) ~ '(informatik|applikation|plattform|ict|software|digital)'`
+        sql`lower(${jobs.title}) ~ '(digitales business|digital business|edb efz)'`
+      )
+    } else if (beruf === 'informatiker') {
+      conditions.push(
+        sql`lower(${jobs.title}) ~ '(informatik|applikation|plattform|ict|software)'`
       )
     } else if (beruf === 'mediamatiker') {
       conditions.push(

@@ -11,7 +11,9 @@ jobs:
     steps:
       - name: Scraper triggern
         run: |
-          curl -f -X GET \
+          curl --fail-with-body -X GET \
             "${{ secrets.APP_URL }}/api/cron/scrape" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            --max-time 60
+            --max-time 120 \
+            --retry 2 \
+            --retry-delay 5

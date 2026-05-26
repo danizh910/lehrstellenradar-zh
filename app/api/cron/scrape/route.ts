@@ -16,12 +16,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const runRecord = await db.insert(scrapeRuns).values({
-    triggeredBy: req.headers.get('x-vercel-cron') ? 'vercel-cron' : 'github-actions',
-  }).returning()
-  const runId = runRecord[0].id
-
+  let runId: string | null = null
   try {
+    const runRecord = await db.insert(scrapeRuns).values({
+      triggeredBy: req.headers.get('x-vercel-cron') ? 'vercel-cron' : 'github-actions',
+    }).returning()
+    runId = runRecord[0].id
+
     const { newJobsCount, sources, newJobs, totalScanned } = await runAllScrapers()
     const settings = await getSettings()
 
@@ -50,14 +51,16 @@ export async function GET(req: NextRequest) {
 
     await db.update(scrapeRuns)
       .set({ finishedAt: new Date(), newJobsCount: String(newJobsCount), sources: JSON.stringify(sources) })
-      .where(eq(scrapeRuns.id, runId))
+      .where(eq(scrapeRuns.id, runId!))
 
     console.log(JSON.stringify({ event: 'cron_complete', runId, newJobsCount, totalScanned }))
     return NextResponse.json({ success: true, newJobs: newJobsCount, totalScanned, sources })
   } catch (err) {
-    await db.update(scrapeRuns)
-      .set({ finishedAt: new Date(), sources: JSON.stringify([{ error: String(err) }]) })
-      .where(eq(scrapeRuns.id, runId))
+    if (runId) {
+      await db.update(scrapeRuns)
+        .set({ finishedAt: new Date(), sources: JSON.stringify([{ error: String(err) }]) })
+        .where(eq(scrapeRuns.id, runId))
+    }
     console.error(err)
     return NextResponse.json({ error: 'Scrape failed', detail: String(err) }, { status: 500 })
   }

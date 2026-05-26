@@ -8,7 +8,7 @@ import { scrapeAllCompanies } from './companies/index'
 import { isWithinRadius, distanceFromLocation } from '@/lib/geo'
 import { matchesJobKeywords } from '@/lib/filters'
 import { db } from '@/lib/db'
-import { jobs, scrapeRuns } from '@/lib/db/schema'
+import { jobs } from '@/lib/db/schema'
 
 export interface ProgressEvent {
   type: 'start' | 'done'
@@ -36,9 +36,6 @@ export async function runAllScrapers(
 ): Promise<OrchestratorResult> {
   const allRaw: RawJob[] = []
   const results: ScraperResult[] = []
-
-  // Record run start
-  await db.insert(scrapeRuns).values({ startedAt: new Date() }).catch(() => {})
 
   // Run all portal scrapers in parallel — massive speed improvement vs sequential
   const portalSettled = await Promise.allSettled(

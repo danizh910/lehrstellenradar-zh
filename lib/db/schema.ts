@@ -31,7 +31,9 @@ export const notifiedJobs = pgTable('notified_jobs', {
   jobId: uuid('job_id').references(() => jobs.id),
   channel: text('channel').notNull(),
   notifiedAt: timestamp('notified_at', { withTimezone: true }).defaultNow(),
-})
+}, (table) => ({
+  uniqueJobChannel: unique().on(table.jobId, table.channel),
+}))
 
 export const scrapeRuns = pgTable('scrape_runs', {
   id: uuid('id').primaryKey().defaultRandom(),

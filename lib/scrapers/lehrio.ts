@@ -1,16 +1,16 @@
 import * as cheerio from 'cheerio'
 import { RawJob } from './types'
 import { matchesJobKeywords } from '@/lib/filters'
-import { generateExternalId, sleep } from '@/lib/utils'
+import { generateExternalId } from '@/lib/utils'
 
-const SOURCE = 'lehrio'
-const BASE = 'https://www.lehrio.ch'
+const SOURCE = 'stellen'
+const BASE = 'https://www.stellen.ch'
 const UA = 'Mozilla/5.0 (compatible; LehrstellenradarBot/1.0)'
 
 const URLS = [
-  `${BASE}/lehrstellen?beruf=entwickler-digitales-business&kanton=ZH`,
-  `${BASE}/lehrstellen?beruf=informatiker&kanton=ZH`,
-  `${BASE}/lehrstellen?beruf=mediamatiker&kanton=ZH`,
+  `${BASE}/de/jobs/suche?q=informatiker+lehrstelle&l=Zürich`,
+  `${BASE}/de/jobs/suche?q=mediamatiker+lehrstelle&l=Zürich`,
+  `${BASE}/de/jobs/suche?q=entwickler+digitales+business+lehrstelle&l=Zürich`,
 ]
 
 export async function scrapeLehrio(): Promise<RawJob[]> {
@@ -21,7 +21,7 @@ export async function scrapeLehrio(): Promise<RawJob[]> {
     try {
       const res = await fetch(url, {
         headers: { 'User-Agent': UA },
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(8000),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const html = await res.text()
@@ -42,7 +42,6 @@ export async function scrapeLehrio(): Promise<RawJob[]> {
         }
       })
 
-      // JSON-LD fallback
       $('script[type="application/ld+json"]').each((_, el) => {
         try {
           const data = JSON.parse($(el).html() || '{}')
@@ -65,7 +64,6 @@ export async function scrapeLehrio(): Promise<RawJob[]> {
     } catch (err) {
       console.log(JSON.stringify({ source: SOURCE, event: 'error', url, error: String(err) }))
     }
-    await sleep(2000)
   }
 
   return jobs

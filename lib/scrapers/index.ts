@@ -25,11 +25,19 @@ interface OrchestratorResult {
 
 const PORTAL_SCRAPERS: Array<{ name: string; fn: () => Promise<RawJob[]> }> = [
   { name: 'yousty', fn: scrapeYousty },
-  { name: 'gateway', fn: scrapeGateway },
-  { name: 'lehrio', fn: scrapeLehrio },
-  { name: 'baam', fn: scrapeBaam },
+  { name: 'lernende', fn: scrapeGateway },
+  { name: 'stellen', fn: scrapeLehrio },
+  { name: 'jobagent', fn: scrapeBaam },
   { name: 'lehrstart', fn: scrapeLehrstart },
 ]
+
+// Wraps a scraper with a hard timeout so one slow site can't block everything
+async function withTimeout<T>(fn: () => Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    fn(),
+    new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms)),
+  ])
+}
 
 export async function runAllScrapers(
   onProgress?: (event: ProgressEvent) => void
@@ -37,7 +45,7 @@ export async function runAllScrapers(
   const allRaw: RawJob[] = []
   const results: ScraperResult[] = []
 
-  // Run all portal scrapers in parallel — massive speed improvement vs sequential
+  // 40s hard cap per scraper — all run in parallel so total wall time = slowest scraper
   const portalSettled = await Promise.allSettled(
     PORTAL_SCRAPERS.map(async ({ name, fn }) => {
       onProgress?.({ type: 'start', source: name })
@@ -45,7 +53,7 @@ export async function runAllScrapers(
       const errors: string[] = []
       let scraped: RawJob[] = []
       try {
-        scraped = await fn()
+        scraped = await withTimeout(fn, 40_000, [])
         console.log(JSON.stringify({ source: name, event: 'scraped', count: scraped.length }))
       } catch (err) {
         errors.push(String(err))
@@ -64,9 +72,13 @@ export async function runAllScrapers(
     }
   }
 
-  // Company scrapers (already run in parallel internally)
+  // Company scrapers (run in parallel internally)
   onProgress?.({ type: 'start', source: 'firmen' })
-  const { jobs: companyJobs, results: companyResults } = await scrapeAllCompanies()
+  const { jobs: companyJobs, results: companyResults } = await withTimeout(
+    scrapeAllCompanies,
+    40_000,
+    { jobs: [], results: [] }
+  )
   allRaw.push(...companyJobs)
   results.push(...companyResults)
   onProgress?.({ type: 'done', source: 'firmen', count: companyJobs.length })
@@ -82,30 +94,63 @@ export async function runAllScrapers(
   // Deduplicate by externalId
   const unique = Array.from(new Map(filtered.map(j => [j.externalId, j])).values())
 
-  // Save to DB
+  // Batch insert — much faster than one-by-one, onConflictDoNothing skips duplicates
   const newJobs: RawJob[] = []
-  for (const job of unique) {
-    try {
-      const result = await db.insert(jobs).values({
-        source: job.source,
-        externalId: job.externalId,
-        title: job.title,
-        company: job.company,
-        location: job.location,
-        distanceKm: job.distanceKm ?? null,
-        applyUrl: job.applyUrl,
-        description: job.description ?? null,
-        startDate: job.startDate ?? null,
-        publishedAt: job.publishedAt ?? null,
-      }).onConflictDoNothing().returning()
+  if (unique.length > 0) {
+    const BATCH = 50
+    for (let i = 0; i < unique.length; i += BATCH) {
+      const chunk = unique.slice(i, i + BATCH)
+      try {
+        const inserted = await db.insert(jobs).values(
+          chunk.map(job => ({
+            source: job.source,
+            externalId: job.externalId,
+            title: job.title,
+            company: job.company,
+            location: job.location,
+            distanceKm: job.distanceKm ?? null,
+            applyUrl: job.applyUrl,
+            description: job.description ?? null,
+            startDate: job.startDate ?? null,
+            publishedAt: job.publishedAt ?? null,
+          }))
+        ).onConflictDoNothing().returning()
 
-      if (result.length > 0) {
-        newJobs.push(job)
-        const res = results.find(r => r.source === job.source)
-        if (res) res.jobsSaved++
+        for (const row of inserted) {
+          const job = chunk.find(j => j.externalId === row.externalId)
+          if (job) {
+            newJobs.push(job)
+            const res = results.find(r => r.source === job.source)
+            if (res) res.jobsSaved++
+          }
+        }
+      } catch (err) {
+        console.log(JSON.stringify({ event: 'db_batch_error', offset: i, error: String(err) }))
+        // Fallback: try individually so one bad row doesn't block the whole chunk
+        for (const job of chunk) {
+          try {
+            const result = await db.insert(jobs).values({
+              source: job.source,
+              externalId: job.externalId,
+              title: job.title,
+              company: job.company,
+              location: job.location,
+              distanceKm: job.distanceKm ?? null,
+              applyUrl: job.applyUrl,
+              description: job.description ?? null,
+              startDate: job.startDate ?? null,
+              publishedAt: job.publishedAt ?? null,
+            }).onConflictDoNothing().returning()
+            if (result.length > 0) {
+              newJobs.push(job)
+              const res = results.find(r => r.source === job.source)
+              if (res) res.jobsSaved++
+            }
+          } catch (e) {
+            console.log(JSON.stringify({ event: 'db_error', job: job.externalId, error: String(e) }))
+          }
+        }
       }
-    } catch (err) {
-      console.log(JSON.stringify({ event: 'db_error', job: job.externalId, error: String(err) }))
     }
   }
 

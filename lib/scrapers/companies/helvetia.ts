@@ -11,7 +11,7 @@ const URL = 'https://www.helvetia.com/ch/web/de/ueber-uns/jobs-und-karriere/lern
 export async function scrapeHelvetia(): Promise<RawJob[]> {
   const jobs: RawJob[] = []
   try {
-    const res = await fetch(URL, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(15000) })
+    const res = await fetch(URL, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(8000) })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const html = await res.text()
     const $ = cheerio.load(html)

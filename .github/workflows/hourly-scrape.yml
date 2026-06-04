@@ -11,9 +11,13 @@ jobs:
     steps:
       - name: Scraper triggern
         run: |
-          curl --fail-with-body -X GET \
+          HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X GET \
             "${{ secrets.APP_URL }}/api/cron/scrape" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            --max-time 120 \
-            --retry 2 \
-            --retry-delay 5
+            --max-time 180)
+          echo "HTTP Status: $HTTP_CODE"
+          cat /tmp/response.txt
+          if [ "$HTTP_CODE" -ge 500 ]; then
+            echo "Server error – check Vercel logs"
+            exit 1
+          fi

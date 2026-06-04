@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio'
 import { RawJob } from './types'
 import { matchesJobKeywords } from '@/lib/filters'
-import { generateExternalId, sleep } from '@/lib/utils'
+import { generateExternalId } from '@/lib/utils'
 
 const SOURCE = 'yousty'
 const BASE = 'https://www.yousty.ch'
@@ -16,7 +16,7 @@ const URLS = [
 async function fetchPage(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: { 'User-Agent': UA },
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(8000),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`)
   return res.text()
@@ -77,7 +77,6 @@ export async function scrapeYousty(): Promise<RawJob[]> {
     } catch (err) {
       console.log(JSON.stringify({ source: SOURCE, event: 'error', url, error: String(err) }))
     }
-    await sleep(2000)
   }
 
   return jobs

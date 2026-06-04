@@ -1,16 +1,15 @@
 import * as cheerio from 'cheerio'
 import { RawJob } from './types'
 import { matchesJobKeywords } from '@/lib/filters'
-import { generateExternalId, sleep } from '@/lib/utils'
+import { generateExternalId } from '@/lib/utils'
 
-const SOURCE = 'baam'
-const BASE = 'https://www.baam.ch'
+const SOURCE = 'jobagent'
+const BASE = 'https://www.jobagent.ch'
 const UA = 'Mozilla/5.0 (compatible; LehrstellenradarBot/1.0)'
 
 const URLS = [
-  `${BASE}/lehrstellen?job=entwickler-digitales-business&region=zuerich`,
-  `${BASE}/lehrstellen?job=informatiker&region=zuerich`,
-  `${BASE}/lehrstellen?job=mediamatiker&region=zuerich`,
+  `${BASE}/stellenangebote/--/regionId=1/skillId=82`,
+  `${BASE}/stellenangebote/--/regionId=1/skillId=315`,
 ]
 
 export async function scrapeBaam(): Promise<RawJob[]> {
@@ -21,18 +20,18 @@ export async function scrapeBaam(): Promise<RawJob[]> {
     try {
       const res = await fetch(url, {
         headers: { 'User-Agent': UA },
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(8000),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const html = await res.text()
       const $ = cheerio.load(html)
 
-      $('[class*="job"], [class*="stelle"], [class*="listing"], [class*="card"], article').each((_, el) => {
+      $('[class*="job"], [class*="stelle"], [class*="listing"], [class*="offer"], article').each((_, el) => {
         const $el = $(el)
         const title = $el.find('h2, h3, h4, [class*="title"]').first().text().trim()
         if (!title || !matchesJobKeywords(title)) return
         const company = $el.find('[class*="company"], [class*="firma"]').first().text().trim() || 'Unbekannt'
-        const location = $el.find('[class*="location"], [class*="ort"], [class*="region"]').first().text().trim() || 'Zürich'
+        const location = $el.find('[class*="location"], [class*="ort"]').first().text().trim() || 'Zürich'
         const href = $el.find('a').first().attr('href') || ''
         const applyUrl = href.startsWith('http') ? href : `${BASE}${href}`
         const externalId = generateExternalId(SOURCE, company, title, applyUrl)
@@ -44,7 +43,6 @@ export async function scrapeBaam(): Promise<RawJob[]> {
     } catch (err) {
       console.log(JSON.stringify({ source: SOURCE, event: 'error', url, error: String(err) }))
     }
-    await sleep(2000)
   }
 
   return jobs

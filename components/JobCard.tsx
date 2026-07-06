@@ -2,6 +2,7 @@
 
 import { NewBadge } from './NewBadge'
 import { formatRelativeDate, isNew } from '@/lib/utils'
+import { matchFavoriteCompany } from '@/lib/favoriteCompanies'
 
 interface Job {
   id: string
@@ -39,15 +40,21 @@ export function JobCard({ job }: JobCardProps) {
   const foundDate = job.foundAt ? new Date(job.foundAt) : null
   const fresh = isNew(foundDate)
   const relDate = foundDate ? formatRelativeDate(foundDate) : ''
+  const favorite = matchFavoriteCompany(job.company)
 
   return (
-    <div className="group relative flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md hover:border-blue-300">
+    <div className={`group relative flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm transition hover:shadow-md ${favorite ? 'border-amber-300 hover:border-amber-400 ring-1 ring-amber-200' : 'border-gray-200 hover:border-blue-300'}`}>
       {/* Header row */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold text-gray-900 text-base leading-snug truncate">{job.title}</h3>
             {fresh && <NewBadge />}
+            {favorite && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                ⭐ Favorit{favorite.finance ? ' · Finanz' : ''}
+              </span>
+            )}
           </div>
           <p className="mt-0.5 text-lg font-bold text-blue-700 truncate">{job.company}</p>
         </div>

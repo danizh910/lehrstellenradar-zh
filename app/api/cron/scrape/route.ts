@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runAllScrapers } from '@/lib/scrapers'
 import { notifyTelegram } from '@/lib/notifications/telegram'
-import { notifyEmail } from '@/lib/notifications/email'
+import { notifyEmail, notifyFavoriteEmail } from '@/lib/notifications/email'
 import { notifyWebPush } from '@/lib/notifications/webpush'
 import { db } from '@/lib/db'
 import { scrapeRuns, notifiedJobs, jobs as jobsTable } from '@/lib/db/schema'
@@ -47,6 +47,8 @@ export async function GET(req: NextRequest) {
       if (settings.telegramEnabled) await notifyTelegram(jobsWithDistance)
       if (settings.pushEnabled) await notifyWebPush(newJobsCount, newJobs.map(j => j.company))
       if (settings.emailEnabled) await notifyEmail(jobsWithDistance)
+      // Favoriten-Alarm läuft immer, unabhängig vom emailEnabled-Setting
+      await notifyFavoriteEmail(jobsWithDistance)
     }
 
     await db.update(scrapeRuns)

@@ -1,9 +1,7 @@
 import { RawJob, ScraperResult } from './types'
 import { scrapeYousty } from './yousty'
-import { scrapeGateway } from './gateway'
 import { scrapeLehrio } from './lehrio'
 import { scrapeBaam } from './baam'
-import { scrapeLehrstart } from './lehrstart'
 import { scrapeAllCompanies } from './companies/index'
 import { isWithinRadius, distanceFromLocation } from '@/lib/geo'
 import { matchesJobKeywords } from '@/lib/filters'
@@ -23,12 +21,14 @@ interface OrchestratorResult {
   newJobs: RawJob[]
 }
 
+// lernende.ch (gateway.ts) ist unerreichbar (dead domain) und lehrstart.ch leitet auf eine
+// tote Kampagnen-Seite um — beide deaktiviert, statt bei jedem Cron-Lauf sinnlos anzufragen.
+// stellen.ch (lehrio.ts) redirected mittlerweile auf jobscout24.ch, jobagent.ch (baam.ts)
+// blockt Bots mit 403 — beide laufen noch mit, liefern aktuell aber 0 Treffer.
 const PORTAL_SCRAPERS: Array<{ name: string; fn: () => Promise<RawJob[]> }> = [
   { name: 'yousty', fn: scrapeYousty },
-  { name: 'lernende', fn: scrapeGateway },
   { name: 'stellen', fn: scrapeLehrio },
   { name: 'jobagent', fn: scrapeBaam },
-  { name: 'lehrstart', fn: scrapeLehrstart },
 ]
 
 // Wraps a scraper with a hard timeout so one slow site can't block everything

@@ -1,8 +1,10 @@
 name: Stündlicher Lehrstellencheck
 
 on:
-  schedule:
-    - cron: '0 6-17 * * 1-5'
+  # PAUSIERT: automatischer Schedule deaktiviert, siehe Chat vom 2026-07-06.
+  # Reaktivieren: Kommentar bei "schedule" unten entfernen.
+  # schedule:
+  #   - cron: '0 6-17 * * 1-5'
   workflow_dispatch:
 
 jobs:
